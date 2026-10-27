@@ -1,11 +1,6 @@
-# Moonlight for the \*New\* Nintendo 3DS
+# Moonlight for the Old Nintendo 3DS(WIP)
 
-Moonlight is an open source client for [Sunshine](https://github.com/LizardByte/Sunshine) and NVIDIA GameStream for the \*New\* Nintendo 3DS, forked from [Moonlight Embedded](https://github.com/moonlight-stream/moonlight-embedded). Moonlight allows you to stream your full collection of games and applications from your PC to other devices to play them remotely.
-
-## Original 3DS Note
-
-While this app is operable on the original 3DS, the hardware decoder must be disabled and the framerate will be significantly lower due to the slower CPU.
-
+This is fork that tries to solve issues with https://github.com/zoeyjodon/moonlight-N3DS, specifically perfomance issues on Old 3DS by replacing H264 with H263p. Currently this is only attempt and it would require separate fork of Sunshine too, which will be done slightly later
 ## First time setup/use
 
 ### Pairing
