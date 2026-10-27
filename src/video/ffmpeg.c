@@ -62,6 +62,7 @@ int ffmpeg_init(int videoFormat, int width, int height, int perf_lvl, int buffer
   ffmpeg_decoder = perf_lvl & VAAPI_ACCELERATION ? VAAPI : SOFTWARE;
 
   for (int try = 0; try < 6; try++) {
+    decoder = NULL;
     if (videoFormat & VIDEO_FORMAT_MASK_H264) {
       if (ffmpeg_decoder == SOFTWARE) {
         if (try == 0) decoder = avcodec_find_decoder_by_name("h264_nvv4l2"); // Tegra
@@ -83,6 +84,11 @@ int ffmpeg_init(int videoFormat, int width, int height, int perf_lvl, int buffer
         if (try == 0) decoder = avcodec_find_decoder_by_name("libdav1d");
       }
       if (try == 1) decoder = avcodec_find_decoder_by_name("av1"); // Hwaccel
+    } else if (videoFormat & VIDEO_FORMAT_MASK_H263) {
+      // H.263+ (H.263 version 2) is software decoded only. FFmpeg's "h263"
+      // decoder also handles H.263+ pictures (PLUSPTYPE, custom picture sizes).
+      if (try == 0) decoder = avcodec_find_decoder_by_name("h263");
+      if (try == 1) decoder = avcodec_find_decoder_by_name("h263p");
     } else {
       printf("Video format not supported\n");
       return -1;
@@ -126,9 +132,13 @@ int ffmpeg_init(int videoFormat, int width, int height, int perf_lvl, int buffer
       avcodec_free_context(&decoder_ctx);
       continue;
     }
+
+    // Stop at the first decoder that opens. Without this, the loop would
+    // keep opening (and leaking) a new context on every remaining try.
+    break;
   }
 
-  if (decoder == NULL) {
+  if (decoder == NULL || decoder_ctx == NULL) {
     printf("Couldn't find decoder\n");
     return -1;
   }

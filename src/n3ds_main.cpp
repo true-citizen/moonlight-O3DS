@@ -204,6 +204,19 @@ prompt_for_video_decoder(VIDEO_DECODER_TYPE default_val) {
     return (VIDEO_DECODER_TYPE)idx;
 }
 
+static VIDEO_CODEC_TYPE prompt_for_video_codec(VIDEO_CODEC_TYPE default_val) {
+    std::vector<std::string> codecs = {
+        "h264 (default)",
+        "h263+ (experimental, software decode, needs H.263+ capable host)",
+    };
+    int idx = console_selection_prompt("Select a video codec", codecs,
+                                       (int)default_val);
+    if (idx < 0) {
+        return default_val;
+    }
+    return (VIDEO_CODEC_TYPE)idx;
+}
+
 static bool prompt_for_boolean(std::string prompt, bool default_val) {
     std::vector<std::string> options = {
         "true",
@@ -244,6 +257,7 @@ static void prompt_for_stream_settings(PCONFIGURATION config) {
         "quitappafter",
         "viewonly",
         "video_decoder",
+        "video_codec",
         "swapfacebuttons",
         "swaptriggersandshoulders",
         "usetriggersformouse",
@@ -298,6 +312,8 @@ static void prompt_for_stream_settings(PCONFIGURATION config) {
         } else if ("video_decoder" == setting_names[idx]) {
             config->video_decoder =
                 prompt_for_video_decoder(config->video_decoder);
+        } else if ("video_codec" == setting_names[idx]) {
+            config->video_codec = prompt_for_video_codec(config->video_codec);
         } else if ("swapfacebuttons" == setting_names[idx]) {
             config->swap_face_buttons = prompt_for_boolean(
                 "Swaps A/B and X/Y to match Xbox controller layout",
@@ -444,7 +460,15 @@ static void stream(PSERVER_DATA server, PCONFIGURATION config, int appId,
         config->localaudio ? &audio_callbacks_mock : &audio_callbacks_n3ds;
 
     PDECODER_RENDERER_CALLBACKS video_callbacks = &decoder_callbacks_mock;
-    switch (config->video_decoder) {
+    VIDEO_DECODER_TYPE video_decoder = config->video_decoder;
+    if (config->video_codec == VIDEO_CODEC_TYPE::H263_VIDEO_CODEC &&
+        video_decoder == VIDEO_DECODER_TYPE::HARDWARE_VIDEO_DECODER) {
+        // The MVD hardware decoder only handles H.264
+        printf("H.263+ is decoded in software, ignoring the hardware decoder "
+               "setting\n");
+        video_decoder = VIDEO_DECODER_TYPE::SOFTWARE_VIDEO_DECODER;
+    }
+    switch (video_decoder) {
     case (VIDEO_DECODER_TYPE::HARDWARE_VIDEO_DECODER):
         video_callbacks = &decoder_callbacks_n3ds_mvd;
         break;
@@ -457,12 +481,12 @@ static void stream(PSERVER_DATA server, PCONFIGURATION config, int appId,
 
     printf(
         "Loading...\nStream %dx%d, %dfps, %dkbps, sops=%d, localaudio=%d, quitappafter=%d,\
- viewonly=%d, encryption=%x, video_decoder=%d, swapfacebuttons=%d, swaptriggersandshoulders=%d,\
+ viewonly=%d, encryption=%x, video_decoder=%d, video_codec=%d, swapfacebuttons=%d, swaptriggersandshoulders=%d,\
  usetriggersformouse=%d, motion_controls=%d\n",
         config->stream.width, config->stream.height, config->stream.fps,
         config->stream.bitrate, config->sops, config->localaudio,
         config->quitappafter, config->viewonly, config->stream.encryptionFlags,
-        config->video_decoder, config->swap_face_buttons,
+        config->video_decoder, config->video_codec, config->swap_face_buttons,
         config->swap_triggers_and_shoulders, config->use_triggers_for_mouse,
         config->motion_controls);
 
@@ -535,7 +559,12 @@ static void action_stream(CONFIGURATION *config, SERVER_DATA *server) {
         return;
     }
 
-    config->stream.supportedVideoFormats = VIDEO_FORMAT_H264;
+    // H.263+ is offered first, but the host can still answer with H.264 if it
+    // has no H.263+ encoder, so the stream starts either way.
+    config->stream.supportedVideoFormats =
+        config->video_codec == VIDEO_CODEC_TYPE::H263_VIDEO_CODEC
+            ? (VIDEO_FORMAT_H263 | VIDEO_FORMAT_H264)
+            : VIDEO_FORMAT_H264;
 
     consoleClear();
 

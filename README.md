@@ -30,11 +30,25 @@ After modding your 3DS and installing the Moonlight CIA, open the moonlight appl
 You can modify documented settings either in the app, or by creating/modifying the config file located at `sd:/3ds/moonlight/moonlight.conf`.
 The default settings are recommended for \*New\* 3DS users.
 
+### H.263+ video (experimental)
+
+H.264 is very demanding for the original 3DS's CPU. As an alternative, the `video_codec` setting (`stream settings` > `video_codec`, or `video_codec = 1` in the config file) asks the host for H.263+ instead. H.263+ is always decoded in software, so the hardware decoder setting is ignored while it is selected.
+
+- The host must be able to encode H.263+ (see [docs/H263_PROTOCOL.md](docs/H263_PROTOCOL.md)). Stock Sunshine and GameStream cannot, in which case the stream falls back to H.264.
+- The console prints `Video format: H.263+` or `Video format: H.264` when the stream starts, so you can tell which one you got.
+- H.263 only supports a few picture sizes, so the host has to use the H.263+ custom picture size to match your configured width and height.
+
 ## Documentation
 
 More information about installing and runnning Moonlight Embedded is available on the [wiki](https://github.com/moonlight-stream/moonlight-embedded/wiki).
 
 ## Build
+
+`moonlight-common-c` is pinned to an upstream commit, so the H.263+ support it needs is carried as a patch. Apply it once after cloning (and after updating submodules), then rebuild FFmpeg with `3ds/build-ffmpeg.sh` so the H.263 decoder is included:
+
+```
+./3ds/apply-patches.sh
+```
 
 I have included a Dockerfile which has all of the required build dependencies pre-installed. The easiest way to build moonlight.cia is by building and running the docker image.
 If you are using VS Code as your editor, you can use the `Build Docker` and `Run Docker` tasks for this.

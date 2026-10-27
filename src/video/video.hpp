@@ -76,13 +76,25 @@ class SoftVideoDecoder : public VideoDecoderBase {
     int submit_decode_unit(PDECODE_UNIT decodeUnit);
 
   private:
+    enum class H263Check { PROCEED, NEED_IDR, SKIP };
+
     inline int _write_yuv_to_framebuffer(const u8 **source, int width,
                                          int height, int px_size);
+    H263Check _check_h263_unit(PDECODE_UNIT decodeUnit, const u8 *data,
+                               int length);
+    bool _repack_planes(const u8 *const src[3], const int stride[3],
+                        const u8 *out[3]);
 
   private:
+    int video_format;
     void *ffmpeg_buffer;
     size_t ffmpeg_buffer_size;
     u8 *rgb_img_buffer;
+    u8 *repack_buffer = nullptr;
+    int h263_error_count = 0;
+    bool h263_idr_mismatch_logged = false;
+    bool h263_size_mismatch_logged = false;
+    bool frame_size_mismatch_logged = false;
 };
 
 class MvdDecoder : public VideoDecoderBase {

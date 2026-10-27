@@ -49,6 +49,7 @@ static struct option long_options[] = {
     {"viewonly", required_argument, NULL, '2'},
     {"port", required_argument, NULL, '6'},
     {"video_decoder", required_argument, NULL, '8'},
+    {"video_codec", required_argument, NULL, 'D'},
     {"motion_controls", required_argument, NULL, 'e'},
     {"swapfacebuttons", required_argument, NULL, 'A'},
     {"swaptriggersandshoulders", required_argument, NULL, 'B'},
@@ -101,6 +102,13 @@ void parse_argument(int c, char *value, PCONFIGURATION config) {
             config->video_decoder = VIDEO_DECODER_TYPE::HARDWARE_VIDEO_DECODER;
         } else {
             config->video_decoder = (VIDEO_DECODER_TYPE)atoi(value);
+        }
+        break;
+    case 'D':
+        if (value != NULL && atoi(value) == VIDEO_CODEC_TYPE::H263_VIDEO_CODEC) {
+            config->video_codec = VIDEO_CODEC_TYPE::H263_VIDEO_CODEC;
+        } else {
+            config->video_codec = VIDEO_CODEC_TYPE::H264_VIDEO_CODEC;
         }
         break;
     case 'A':
@@ -168,6 +176,7 @@ void config_save(char *filename, PCONFIGURATION config) {
     write_config_bool(fd, "quitappafter", config->quitappafter);
     write_config_bool(fd, "viewonly", config->viewonly);
     write_config_int(fd, "video_decoder", config->video_decoder);
+    write_config_int(fd, "video_codec", config->video_codec);
     write_config_bool(fd, "swapfacebuttons", config->swap_face_buttons);
     write_config_bool(fd, "swaptriggersandshoulders",
                       config->swap_triggers_and_shoulders);
@@ -210,6 +219,7 @@ void config_parse(int argc, char *argv[], PCONFIGURATION config) {
     config->stream.fps = 60;
     config->stream.encryptionFlags = ENCFLG_NONE;
     config->video_decoder = VIDEO_DECODER_TYPE::HARDWARE_VIDEO_DECODER;
+    config->video_codec = VIDEO_CODEC_TYPE::H264_VIDEO_CODEC;
     config->motion_controls = false;
     config->swap_face_buttons = false;
     config->swap_triggers_and_shoulders = false;

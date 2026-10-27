@@ -18,6 +18,7 @@
  */
 
 #include "ffmpeg.h"
+#include "h263_util.h"
 #include "video.hpp"
 
 #include "../util.h"
@@ -31,11 +32,16 @@
 #define SLICES_PER_FRAME 1
 #define N3DS_BUFFER_FRAMES 1
 
+// Don't flood the console (and slow the decoder down) when a stream is bad
+#define H263_LOG_LIMIT 3
+
 static std::unique_ptr<SoftVideoDecoder> instance = nullptr;
 
 SoftVideoDecoder::SoftVideoDecoder(int videoFormat, int width, int height,
                                    int redrawRate, void *context, int drFlags)
-    : VideoDecoderBase(width, height) {
+    : VideoDecoderBase(width, height), video_format(videoFormat) {
+    printf("Video format: %s\n",
+           (videoFormat & VIDEO_FORMAT_MASK_H263) ? "H.263+" : "H.264");
     if (ffmpeg_init(videoFormat, width, height, 0, N3DS_BUFFER_FRAMES,
                     SLICES_PER_FRAME) < 0) {
         fprintf(stderr, "Couldn't initialize video decoding\n");
@@ -76,6 +82,80 @@ SoftVideoDecoder::~SoftVideoDecoder() {
     ffmpeg_destroy();
     y2rExit();
     linearFree(rgb_img_buffer);
+    if (repack_buffer != nullptr) {
+        linearFree(repack_buffer);
+    }
+}
+
+// H.263+ has no NAL units or parameter sets, so the only way to tell that a
+// decode unit really is H.263+ (and not damaged, or a different codec) is its
+// picture header. Bad units are not handed to FFmpeg.
+SoftVideoDecoder::H263Check SoftVideoDecoder::_check_h263_unit(
+    PDECODE_UNIT decodeUnit, const u8 *data, int length) {
+    H263PictureInfo info;
+    H263Status status = h263_parse_picture_header(data, length, &info);
+    if (status != H263_OK) {
+        if (h263_error_count++ < H263_LOG_LIMIT) {
+            fprintf(stderr, "Invalid H.263+ picture (%s), requesting IDR\n",
+                    h263_status_str(status));
+        }
+        return H263Check::NEED_IDR;
+    }
+
+    if (decodeUnit->frameType == FRAME_TYPE_IDR && !info.is_intra &&
+        !h263_idr_mismatch_logged) {
+        h263_idr_mismatch_logged = true;
+        fprintf(stderr, "Host flagged an IDR frame that is not INTRA coded\n");
+    }
+
+    // The renderer and Y2R are set up for the configured size. The size only
+    // comes with some pictures, but when it does it must match.
+    if (info.has_dimensions && (info.width != (unsigned)image_width ||
+                                info.height != (unsigned)image_height)) {
+        if (!h263_size_mismatch_logged) {
+            h263_size_mismatch_logged = true;
+            fprintf(stderr, "Host is sending %ux%u H.263+, expected %dx%d\n",
+                    info.width, info.height, image_width, image_height);
+        }
+        return H263Check::SKIP;
+    }
+    return H263Check::PROCEED;
+}
+
+// The Y2R transfers in _write_yuv_to_framebuffer assume the planes have no
+// padding at the end of each line. FFmpeg pads lines to the alignment of the
+// build (and the H.263 decoder is less predictable about it than H.264), so
+// copy the planes into a tightly packed buffer when they are padded.
+bool SoftVideoDecoder::_repack_planes(const u8 *const src[3],
+                                      const int stride[3], const u8 *out[3]) {
+    const int chroma_w = image_width / 2;
+    const int chroma_h = image_height / 2;
+    const size_t y_size = (size_t)image_width * image_height;
+    const size_t c_size = (size_t)chroma_w * chroma_h;
+
+    if (repack_buffer == nullptr) {
+        repack_buffer = (u8 *)linearAlloc(y_size + 2 * c_size);
+        if (repack_buffer == nullptr) {
+            fprintf(stderr, "Out of memory!\n");
+            return false;
+        }
+    }
+
+    u8 *dst[3] = {repack_buffer, repack_buffer + y_size,
+                  repack_buffer + y_size + c_size};
+    const int widths[3] = {image_width, chroma_w, chroma_w};
+    const int heights[3] = {image_height, chroma_h, chroma_h};
+    for (int p = 0; p < 3; p++) {
+        for (int line = 0; line < heights[p]; line++) {
+            memcpy(dst[p] + (size_t)line * widths[p],
+                   src[p] + (size_t)line * stride[p], widths[p]);
+        }
+        out[p] = dst[p];
+    }
+
+    // Y2R reads this over DMA, so the CPU's writes must reach memory first
+    GSPGPU_FlushDataCache(repack_buffer, y_size + 2 * c_size);
+    return true;
 }
 
 inline int SoftVideoDecoder::_write_yuv_to_framebuffer(const u8 **source,
@@ -150,11 +230,54 @@ int SoftVideoDecoder::submit_decode_unit(PDECODE_UNIT decodeUnit) {
         length += entry->length;
         entry = entry->next;
     }
-    ffmpeg_decode((unsigned char *)ffmpeg_buffer, length);
+    // FFmpeg requires the padding after the packet to be zeroed
+    memset((u8 *)ffmpeg_buffer + length, 0, AV_INPUT_BUFFER_PADDING_SIZE);
+
+    if (video_format & VIDEO_FORMAT_MASK_H263) {
+        switch (_check_h263_unit(decodeUnit, (const u8 *)ffmpeg_buffer,
+                                 length)) {
+        case H263Check::NEED_IDR:
+            return DR_NEED_IDR;
+        case H263Check::SKIP:
+            return DR_OK;
+        case H263Check::PROCEED:
+            break;
+        }
+    }
+
+    if (ffmpeg_decode((unsigned char *)ffmpeg_buffer, length) < 0) {
+        // The decoder state is unknown, so ask the host for a key frame
+        return DR_NEED_IDR;
+    }
 
     AVFrame *frame = ffmpeg_get_frame(false);
-    int status = _write_yuv_to_framebuffer(
-        (const u8 **)frame->data, image_width, image_height, pixel_size);
+    if (frame == NULL) {
+        // The decoder did not produce a picture for this unit
+        return DR_OK;
+    }
+
+    if (frame->width != image_width || frame->height != image_height) {
+        if (!frame_size_mismatch_logged) {
+            frame_size_mismatch_logged = true;
+            fprintf(stderr, "Decoded %dx%d frame, expected %dx%d\n",
+                    frame->width, frame->height, image_width, image_height);
+        }
+        return DR_OK;
+    }
+
+    const u8 *planes[3] = {frame->data[0], frame->data[1], frame->data[2]};
+    const int chroma_w = image_width / 2;
+    if (frame->linesize[0] != image_width || frame->linesize[1] != chroma_w ||
+        frame->linesize[2] != chroma_w) {
+        const u8 *packed[3];
+        if (!_repack_planes(planes, frame->linesize, packed)) {
+            return DR_OK;
+        }
+        memcpy(planes, packed, sizeof(planes));
+    }
+
+    int status = _write_yuv_to_framebuffer(planes, image_width, image_height,
+                                           pixel_size);
 
     return status;
 }

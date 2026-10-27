@@ -31,6 +31,10 @@ enum VIDEO_DECODER_TYPE {
     DISABLE_VIDEO_DECODER
 };
 
+// Which codec to ask the host for. H.263+ is decoded in software only and
+// needs a host that can encode it, otherwise the stream falls back to H.264.
+enum VIDEO_CODEC_TYPE { H264_VIDEO_CODEC = 0, H263_VIDEO_CODEC };
+
 typedef struct _CONFIGURATION {
     STREAM_CONFIGURATION stream;
     char *app;
@@ -52,6 +56,7 @@ typedef struct _CONFIGURATION {
     bool hdr;
     unsigned short port;
     VIDEO_DECODER_TYPE video_decoder;
+    VIDEO_CODEC_TYPE video_codec;
     bool motion_controls;
     bool swap_face_buttons;
     bool swap_triggers_and_shoulders;
