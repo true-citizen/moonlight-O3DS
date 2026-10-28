@@ -34,6 +34,8 @@
 
 // Don't flood the console (and slow the decoder down) when a stream is bad
 #define H263_LOG_LIMIT 3
+// Number of decode units that get a one-line trace (see submit_decode_unit)
+#define TRACE_UNIT_LIMIT 4
 
 static std::unique_ptr<SoftVideoDecoder> instance = nullptr;
 
@@ -245,6 +247,13 @@ int SoftVideoDecoder::submit_decode_unit(PDECODE_UNIT decodeUnit) {
         }
     }
 
+    const bool trace = units_logged < TRACE_UNIT_LIMIT;
+    if (trace) {
+        fprintf(stderr, "unit %d: %d bytes, %s\n", units_logged, length,
+                decodeUnit->frameType == FRAME_TYPE_IDR ? "IDR" : "P");
+        units_logged++;
+    }
+
     if (ffmpeg_decode((unsigned char *)ffmpeg_buffer, length) < 0) {
         // The decoder state is unknown, so ask the host for a key frame
         return DR_NEED_IDR;
@@ -254,6 +263,12 @@ int SoftVideoDecoder::submit_decode_unit(PDECODE_UNIT decodeUnit) {
     if (frame == NULL) {
         // The decoder did not produce a picture for this unit
         return DR_OK;
+    }
+
+    if (trace) {
+        fprintf(stderr, "frame %dx%d stride %d/%d/%d\n", frame->width,
+                frame->height, frame->linesize[0], frame->linesize[1],
+                frame->linesize[2]);
     }
 
     if (frame->width != image_width || frame->height != image_height) {

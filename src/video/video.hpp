@@ -87,10 +87,13 @@ class SoftVideoDecoder : public VideoDecoderBase {
 
   private:
     int video_format;
-    void *ffmpeg_buffer;
-    size_t ffmpeg_buffer_size;
-    u8 *rgb_img_buffer;
+    // ensure_buf_size() realloc()s this pointer and skips allocating when the
+    // size already looks big enough, so both must start out zeroed.
+    void *ffmpeg_buffer = nullptr;
+    size_t ffmpeg_buffer_size = 0;
+    u8 *rgb_img_buffer = nullptr;
     u8 *repack_buffer = nullptr;
+    int units_logged = 0;
     int h263_error_count = 0;
     bool h263_idr_mismatch_logged = false;
     bool h263_size_mismatch_logged = false;
