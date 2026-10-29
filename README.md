@@ -33,7 +33,7 @@ The default settings are recommended for \*New\* 3DS users.
 
 ### H.263+ video (experimental)
 
-H.264 is very demanding for the original 3DS's CPU. As an alternative, the `video_codec` setting (`stream settings` > `video_codec`, or `video_codec = 1` in the config file) asks the host for H.263+ instead. H.263+ is always decoded in software, so the hardware decoder setting is ignored while it is selected.
+H.264 is very demanding for the original 3DS's CPU. As an alternative, the `video_codec` setting (`stream settings` > `video_codec`, or `video_codec = 1` in the config file; `0` = H.264, `1` = H.263+, `2` = MPEG-2, and the names `h264`, `h263` and `mpeg2` also work) asks the host for H.263+ instead. H.263+ is always decoded in software, so the hardware decoder setting is ignored while it is selected.
 
 - The host must be able to encode H.263+ (see [docs/H263_PROTOCOL.md](docs/H263_PROTOCOL.md)). Stock Sunshine and GameStream cannot, in which case the stream falls back to H.264.
 - The console prints `Video format: H.263+` or `Video format: H.264` when the stream starts, so you can tell which one you got.

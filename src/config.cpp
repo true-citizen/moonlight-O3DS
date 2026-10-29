@@ -23,6 +23,7 @@
 #include "util.h"
 
 #include <cstring>
+#include <strings.h>
 #include <fstream>
 #include <getopt.h>
 
@@ -56,6 +57,42 @@ static struct option long_options[] = {
     {"usetriggersformouse", required_argument, NULL, 'C'},
     {0, 0, 0, 0},
 };
+
+// video_codec accepts the number (0 = H.264, 1 = H.263+, 2 = MPEG-2) or a name
+static VIDEO_CODEC_TYPE parse_video_codec(const char *value) {
+    if (value == NULL) {
+        return VIDEO_CODEC_TYPE::H264_VIDEO_CODEC;
+    }
+    while (*value == ' ' || *value == '\t') {
+        value++;
+    }
+    if (strncasecmp(value, "mpeg2", 5) == 0 ||
+        strncasecmp(value, "mpeg-2", 6) == 0) {
+        return VIDEO_CODEC_TYPE::MPEG2_VIDEO_CODEC;
+    }
+    if (strncasecmp(value, "h263", 4) == 0 ||
+        strncasecmp(value, "h.263", 5) == 0) {
+        return VIDEO_CODEC_TYPE::H263_VIDEO_CODEC;
+    }
+    if (strncasecmp(value, "h264", 4) == 0 ||
+        strncasecmp(value, "h.264", 5) == 0) {
+        return VIDEO_CODEC_TYPE::H264_VIDEO_CODEC;
+    }
+    char *end = NULL;
+    long number = strtol(value, &end, 10);
+    if (end != value) {
+        switch (number) {
+        case VIDEO_CODEC_TYPE::H263_VIDEO_CODEC:
+            return VIDEO_CODEC_TYPE::H263_VIDEO_CODEC;
+        case VIDEO_CODEC_TYPE::MPEG2_VIDEO_CODEC:
+            return VIDEO_CODEC_TYPE::MPEG2_VIDEO_CODEC;
+        case VIDEO_CODEC_TYPE::H264_VIDEO_CODEC:
+            return VIDEO_CODEC_TYPE::H264_VIDEO_CODEC;
+        }
+    }
+    fprintf(stderr, "Unknown video_codec '%s', using H.264\n", value);
+    return VIDEO_CODEC_TYPE::H264_VIDEO_CODEC;
+}
 
 void parse_argument(int c, char *value, PCONFIGURATION config) {
     switch (c) {
@@ -105,14 +142,7 @@ void parse_argument(int c, char *value, PCONFIGURATION config) {
         }
         break;
     case 'D':
-        if (value != NULL && atoi(value) == VIDEO_CODEC_TYPE::H263_VIDEO_CODEC) {
-            config->video_codec = VIDEO_CODEC_TYPE::H263_VIDEO_CODEC;
-        } else if (value != NULL &&
-                   atoi(value) == VIDEO_CODEC_TYPE::MPEG2_VIDEO_CODEC) {
-            config->video_codec = VIDEO_CODEC_TYPE::MPEG2_VIDEO_CODEC;
-        } else {
-            config->video_codec = VIDEO_CODEC_TYPE::H264_VIDEO_CODEC;
-        }
+        config->video_codec = parse_video_codec(value);
         break;
     case 'A':
         config->swap_face_buttons =
