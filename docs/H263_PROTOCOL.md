@@ -35,7 +35,9 @@ If the host does not support it, the client falls back to H.264.
   trusts the frame header for IDR detection, like AV1.
 - The stream size must match the width and height configured on the client.
   H.263+ carries non-standard sizes with the custom picture format, so the host
-  needs both sizes to be a multiple of 4 (maximum 2048x1152).
+  needs both sizes to be a multiple of 4 (maximum 2048x1152). The client
+  prints a warning before streaming when the configured size does not fit.
+- Any frame rate and bitrate works.
 - The client checks each picture header (`src/video/h263_util.c`) and asks for
   a new IDR frame if one is damaged.
 - Only a single reference frame is used, so reference frame invalidation is not

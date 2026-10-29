@@ -149,3 +149,8 @@ const char *h263_status_str(H263Status status) {
     }
     return "unknown";
 }
+
+bool h263_size_supported(int width, int height) {
+    return width > 0 && height > 0 && width % 4 == 0 && height % 4 == 0 &&
+           width <= 2048 && height <= 1152;
+}

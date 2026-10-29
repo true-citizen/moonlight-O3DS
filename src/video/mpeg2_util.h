@@ -45,6 +45,15 @@ Mpeg2Status mpeg2_parse_picture_header(const uint8_t *data, size_t length,
 
 const char *mpeg2_status_str(Mpeg2Status status);
 
+// MPEG-2 only has a fixed set of frame rates (24, 25, 30, 50 and 60 fps scaled
+// by n/d with n 1..4 and d 1..32, e.g. 15, 20, 45, 72, 90, 120, 240). The host
+// rejects any other value, so these tell which integer rates can be used.
+bool mpeg2_fps_supported(int fps);
+
+// The supported rate closest to |fps| (the lower one when two are equally
+// close). Returns |fps| unchanged when it is out of range.
+int mpeg2_nearest_supported_fps(int fps);
+
 #ifdef __cplusplus
 }
 #endif

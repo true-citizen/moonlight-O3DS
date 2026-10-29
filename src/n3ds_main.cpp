@@ -23,6 +23,8 @@
 #include "system/dispatcher.hpp"
 #include "system/n3ds_connection.hpp"
 #include "system/pair_record.hpp"
+#include "video/h263_util.h"
+#include "video/mpeg2_util.h"
 #include "video/video.hpp"
 
 #include <3ds.h>
@@ -577,6 +579,22 @@ static void action_stream(CONFIGURATION *config, SERVER_DATA *server) {
     default:
         config->stream.supportedVideoFormats = VIDEO_FORMAT_H264;
         break;
+    }
+
+    // The host rejects stream settings its encoder cannot produce. Say so
+    // here, where it can be fixed, instead of failing with a bare error code.
+    if (config->video_codec == VIDEO_CODEC_TYPE::MPEG2_VIDEO_CODEC &&
+        !mpeg2_fps_supported(config->stream.fps)) {
+        int fps = mpeg2_nearest_supported_fps(config->stream.fps);
+        printf("MPEG-2 cannot encode %d fps, using %d fps\n",
+               config->stream.fps, fps);
+        config->stream.fps = fps;
+    }
+    if (config->video_codec == VIDEO_CODEC_TYPE::H263_VIDEO_CODEC &&
+        !h263_size_supported(config->stream.width, config->stream.height)) {
+        printf("WARNING: H.263+ needs a width and height that are multiples "
+               "of 4, at most 2048x1152 (%dx%d is not)\n",
+               config->stream.width, config->stream.height);
     }
 
     consoleClear();

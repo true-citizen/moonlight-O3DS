@@ -34,10 +34,17 @@ The low 16 bits of the format flags are all used by upstream, hence bit 16.
 
 - Each frame is one picture. A key frame starts with a sequence header
   (`00 00 01 B3`), any other frame with the picture header (`00 00 01 00`).
-- The host uses closed GOPs and no B frames. Limits of the encoder: width and
-  height 2..16383 (`size % 4096 >= 2`), and the frame rate must be one of the
-  MPEG-2 rates (24, 25, 30, 50, 60 and the 1000/1001 variants, times (n+1)/(d+1);
-  144 fps is not possible).
+- The host uses closed GOPs and no B frames. Limits of the encoder:
+  - Width and height 2..16383 (`size % 4096 >= 2`).
+  - The frame rate must be 24, 25, 30, 50 or 60 fps (or the 1000/1001 variants)
+    times (n+1)/(d+1), n 0..3, d 0..31. The whole numbers that work are
+    1, 2, 3, 4, 5, 6, 8, 9, 10, 12, 15, 16, 18, 20, 24, 25, 30, 32, 36, 40,
+    45, 48, 50, 60, 72, 75, 80, 90, 96, 100, 120, 150, 180, 200 and 240.
+    Anything else (144, 59, 35, ...) is rejected by the host. The client
+    switches to the nearest supported rate and says so on screen.
+  - Very low bitrates trip an assertion inside FFmpeg, so the host raises the
+    bitrate to at least 0.5 Kbps per thousand pixels (about 192 Kbps at
+    800x480).
 - The stream size must match the configured width and height. The client checks
   each picture header (`src/video/mpeg2_util.c`) and asks for a new IDR frame
   when one is damaged.

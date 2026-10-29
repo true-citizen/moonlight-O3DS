@@ -105,3 +105,35 @@ const char *mpeg2_status_str(Mpeg2Status status) {
     }
     return "unknown";
 }
+
+bool mpeg2_fps_supported(int fps) {
+    static const int bases[] = {24, 25, 30, 50, 60};
+    if (fps < 1) {
+        return false;
+    }
+    for (size_t b = 0; b < sizeof(bases) / sizeof(bases[0]); b++) {
+        for (int n = 1; n <= 4; n++) {
+            for (int d = 1; d <= 32; d++) {
+                if (fps * d == bases[b] * n) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+int mpeg2_nearest_supported_fps(int fps) {
+    if (fps < 1 || fps > 240) {
+        return fps;
+    }
+    for (int delta = 0; delta <= 240; delta++) {
+        if (fps - delta >= 1 && mpeg2_fps_supported(fps - delta)) {
+            return fps - delta;
+        }
+        if (mpeg2_fps_supported(fps + delta)) {
+            return fps + delta;
+        }
+    }
+    return fps;
+}

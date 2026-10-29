@@ -42,6 +42,10 @@ H263Status h263_parse_picture_header(const uint8_t *data, size_t length,
 
 const char *h263_status_str(H263Status status);
 
+// H.263+ carries the stream size as the custom picture format, which the host
+// encoder only fills for sizes that are a multiple of 4, up to 2048x1152.
+bool h263_size_supported(int width, int height);
+
 #ifdef __cplusplus
 }
 #endif
