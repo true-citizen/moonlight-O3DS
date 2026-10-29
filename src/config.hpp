@@ -33,7 +33,11 @@ enum VIDEO_DECODER_TYPE {
 
 // Which codec to ask the host for. H.263+ is decoded in software only and
 // needs a host that can encode it, otherwise the stream falls back to H.264.
-enum VIDEO_CODEC_TYPE { H264_VIDEO_CODEC = 0, H263_VIDEO_CODEC };
+enum VIDEO_CODEC_TYPE {
+    H264_VIDEO_CODEC = 0,
+    H263_VIDEO_CODEC,
+    MPEG2_VIDEO_CODEC
+};
 
 typedef struct _CONFIGURATION {
     STREAM_CONFIGURATION stream;

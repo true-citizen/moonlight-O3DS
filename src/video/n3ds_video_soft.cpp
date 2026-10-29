@@ -19,6 +19,7 @@
 
 #include "ffmpeg.h"
 #include "h263_util.h"
+#include "mpeg2_util.h"
 #include "video.hpp"
 
 #include "../util.h"
@@ -33,7 +34,7 @@
 #define N3DS_BUFFER_FRAMES 1
 
 // Don't flood the console (and slow the decoder down) when a stream is bad
-#define H263_LOG_LIMIT 3
+#define PICTURE_LOG_LIMIT 3
 // Number of decode units that get a one-line trace (see submit_decode_unit)
 #define TRACE_UNIT_LIMIT 4
 
@@ -43,7 +44,9 @@ SoftVideoDecoder::SoftVideoDecoder(int videoFormat, int width, int height,
                                    int redrawRate, void *context, int drFlags)
     : VideoDecoderBase(width, height), video_format(videoFormat) {
     printf("Video format: %s\n",
-           (videoFormat & VIDEO_FORMAT_MASK_H263) ? "H.263+" : "H.264");
+           (videoFormat & VIDEO_FORMAT_MASK_MPEG2)
+               ? "MPEG-2"
+               : (videoFormat & VIDEO_FORMAT_MASK_H263) ? "H.263+" : "H.264");
     if (ffmpeg_init(videoFormat, width, height, 0, N3DS_BUFFER_FRAMES,
                     SLICES_PER_FRAME) < 0) {
         fprintf(stderr, "Couldn't initialize video decoding\n");
@@ -89,39 +92,58 @@ SoftVideoDecoder::~SoftVideoDecoder() {
     }
 }
 
-// H.263+ has no NAL units or parameter sets, so the only way to tell that a
-// decode unit really is H.263+ (and not damaged, or a different codec) is its
-// picture header. Bad units are not handed to FFmpeg.
-SoftVideoDecoder::H263Check SoftVideoDecoder::_check_h263_unit(
-    PDECODE_UNIT decodeUnit, const u8 *data, int length) {
-    H263PictureInfo info;
-    H263Status status = h263_parse_picture_header(data, length, &info);
-    if (status != H263_OK) {
-        if (h263_error_count++ < H263_LOG_LIMIT) {
-            fprintf(stderr, "Invalid H.263+ picture (%s), requesting IDR\n",
-                    h263_status_str(status));
+// H.263+ and MPEG-2 have no NAL units or parameter sets that travel separately,
+// so the only way to tell that a decode unit really is that codec (and not
+// damaged, or a different codec) is its picture header. Bad units are not
+// handed to FFmpeg.
+SoftVideoDecoder::PictureCheck SoftVideoDecoder::_check_picture(
+    PDECODE_UNIT decodeUnit, const char *codec, bool parsed_ok,
+    const char *error, bool is_intra, bool has_dimensions, unsigned width,
+    unsigned height) {
+    if (!parsed_ok) {
+        if (picture_error_count++ < PICTURE_LOG_LIMIT) {
+            fprintf(stderr, "Invalid %s picture (%s), requesting IDR\n", codec,
+                    error);
         }
-        return H263Check::NEED_IDR;
+        return PictureCheck::NEED_IDR;
     }
 
-    if (decodeUnit->frameType == FRAME_TYPE_IDR && !info.is_intra &&
-        !h263_idr_mismatch_logged) {
-        h263_idr_mismatch_logged = true;
+    if (decodeUnit->frameType == FRAME_TYPE_IDR && !is_intra &&
+        !idr_mismatch_logged) {
+        idr_mismatch_logged = true;
         fprintf(stderr, "Host flagged an IDR frame that is not INTRA coded\n");
     }
 
     // The renderer and Y2R are set up for the configured size. The size only
     // comes with some pictures, but when it does it must match.
-    if (info.has_dimensions && (info.width != (unsigned)image_width ||
-                                info.height != (unsigned)image_height)) {
-        if (!h263_size_mismatch_logged) {
-            h263_size_mismatch_logged = true;
-            fprintf(stderr, "Host is sending %ux%u H.263+, expected %dx%d\n",
-                    info.width, info.height, image_width, image_height);
+    if (has_dimensions &&
+        (width != (unsigned)image_width || height != (unsigned)image_height)) {
+        if (!size_mismatch_logged) {
+            size_mismatch_logged = true;
+            fprintf(stderr, "Host is sending %ux%u %s, expected %dx%d\n",
+                    width, height, codec, image_width, image_height);
         }
-        return H263Check::SKIP;
+        return PictureCheck::SKIP;
     }
-    return H263Check::PROCEED;
+    return PictureCheck::PROCEED;
+}
+
+SoftVideoDecoder::PictureCheck SoftVideoDecoder::_check_h263_unit(
+    PDECODE_UNIT decodeUnit, const u8 *data, int length) {
+    H263PictureInfo info;
+    H263Status status = h263_parse_picture_header(data, length, &info);
+    return _check_picture(decodeUnit, "H.263+", status == H263_OK,
+                          h263_status_str(status), info.is_intra,
+                          info.has_dimensions, info.width, info.height);
+}
+
+SoftVideoDecoder::PictureCheck SoftVideoDecoder::_check_mpeg2_unit(
+    PDECODE_UNIT decodeUnit, const u8 *data, int length) {
+    Mpeg2PictureInfo info;
+    Mpeg2Status status = mpeg2_parse_picture_header(data, length, &info);
+    return _check_picture(decodeUnit, "MPEG-2", status == MPEG2_OK,
+                          mpeg2_status_str(status), info.is_intra,
+                          info.has_dimensions, info.width, info.height);
 }
 
 // The Y2R transfers in _write_yuv_to_framebuffer assume the planes have no
@@ -235,14 +257,19 @@ int SoftVideoDecoder::submit_decode_unit(PDECODE_UNIT decodeUnit) {
     // FFmpeg requires the padding after the packet to be zeroed
     memset((u8 *)ffmpeg_buffer + length, 0, AV_INPUT_BUFFER_PADDING_SIZE);
 
-    if (video_format & VIDEO_FORMAT_MASK_H263) {
-        switch (_check_h263_unit(decodeUnit, (const u8 *)ffmpeg_buffer,
-                                 length)) {
-        case H263Check::NEED_IDR:
+    if (video_format & (VIDEO_FORMAT_MASK_H263 | VIDEO_FORMAT_MASK_MPEG2)) {
+        PictureCheck check =
+            (video_format & VIDEO_FORMAT_MASK_MPEG2)
+                ? _check_mpeg2_unit(decodeUnit, (const u8 *)ffmpeg_buffer,
+                                    length)
+                : _check_h263_unit(decodeUnit, (const u8 *)ffmpeg_buffer,
+                                   length);
+        switch (check) {
+        case PictureCheck::NEED_IDR:
             return DR_NEED_IDR;
-        case H263Check::SKIP:
+        case PictureCheck::SKIP:
             return DR_OK;
-        case H263Check::PROCEED:
+        case PictureCheck::PROCEED:
             break;
         }
     }

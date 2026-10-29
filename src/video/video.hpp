@@ -76,12 +76,18 @@ class SoftVideoDecoder : public VideoDecoderBase {
     int submit_decode_unit(PDECODE_UNIT decodeUnit);
 
   private:
-    enum class H263Check { PROCEED, NEED_IDR, SKIP };
+    enum class PictureCheck { PROCEED, NEED_IDR, SKIP };
 
     inline int _write_yuv_to_framebuffer(const u8 **source, int width,
                                          int height, int px_size);
-    H263Check _check_h263_unit(PDECODE_UNIT decodeUnit, const u8 *data,
-                               int length);
+    PictureCheck _check_h263_unit(PDECODE_UNIT decodeUnit, const u8 *data,
+                                  int length);
+    PictureCheck _check_mpeg2_unit(PDECODE_UNIT decodeUnit, const u8 *data,
+                                   int length);
+    PictureCheck _check_picture(PDECODE_UNIT decodeUnit, const char *codec,
+                                bool parsed_ok, const char *error,
+                                bool is_intra, bool has_dimensions,
+                                unsigned width, unsigned height);
     bool _repack_planes(const u8 *const src[3], const int stride[3],
                         const u8 *out[3]);
 
@@ -94,9 +100,9 @@ class SoftVideoDecoder : public VideoDecoderBase {
     u8 *rgb_img_buffer = nullptr;
     u8 *repack_buffer = nullptr;
     int units_logged = 0;
-    int h263_error_count = 0;
-    bool h263_idr_mismatch_logged = false;
-    bool h263_size_mismatch_logged = false;
+    int picture_error_count = 0;
+    bool idr_mismatch_logged = false;
+    bool size_mismatch_logged = false;
     bool frame_size_mismatch_logged = false;
 };
 

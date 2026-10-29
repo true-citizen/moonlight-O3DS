@@ -208,6 +208,7 @@ static VIDEO_CODEC_TYPE prompt_for_video_codec(VIDEO_CODEC_TYPE default_val) {
     std::vector<std::string> codecs = {
         "h264 (default)",
         "h263+ (experimental, software decode, needs H.263+ capable host)",
+        "mpeg2 (experimental, software decode, needs MPEG-2 capable host)",
     };
     int idx = console_selection_prompt("Select a video codec", codecs,
                                        (int)default_val);
@@ -461,11 +462,14 @@ static void stream(PSERVER_DATA server, PCONFIGURATION config, int appId,
 
     PDECODER_RENDERER_CALLBACKS video_callbacks = &decoder_callbacks_mock;
     VIDEO_DECODER_TYPE video_decoder = config->video_decoder;
-    if (config->video_codec == VIDEO_CODEC_TYPE::H263_VIDEO_CODEC &&
+    if (config->video_codec != VIDEO_CODEC_TYPE::H264_VIDEO_CODEC &&
         video_decoder == VIDEO_DECODER_TYPE::HARDWARE_VIDEO_DECODER) {
         // The MVD hardware decoder only handles H.264
-        printf("H.263+ is decoded in software, ignoring the hardware decoder "
-               "setting\n");
+        printf("%s is decoded in software, ignoring the hardware decoder "
+               "setting\n",
+               config->video_codec == VIDEO_CODEC_TYPE::MPEG2_VIDEO_CODEC
+                   ? "MPEG-2"
+                   : "H.263+");
         video_decoder = VIDEO_DECODER_TYPE::SOFTWARE_VIDEO_DECODER;
     }
     switch (video_decoder) {
@@ -559,12 +563,21 @@ static void action_stream(CONFIGURATION *config, SERVER_DATA *server) {
         return;
     }
 
-    // H.263+ is offered first, but the host can still answer with H.264 if it
-    // has no H.263+ encoder, so the stream starts either way.
-    config->stream.supportedVideoFormats =
-        config->video_codec == VIDEO_CODEC_TYPE::H263_VIDEO_CODEC
-            ? (VIDEO_FORMAT_H263 | VIDEO_FORMAT_H264)
-            : VIDEO_FORMAT_H264;
+    // H.263+ / MPEG-2 is offered first, but the host can still answer with
+    // H.264 if it has no such encoder, so the stream starts either way.
+    switch (config->video_codec) {
+    case VIDEO_CODEC_TYPE::H263_VIDEO_CODEC:
+        config->stream.supportedVideoFormats =
+            VIDEO_FORMAT_H263 | VIDEO_FORMAT_H264;
+        break;
+    case VIDEO_CODEC_TYPE::MPEG2_VIDEO_CODEC:
+        config->stream.supportedVideoFormats =
+            VIDEO_FORMAT_MPEG2 | VIDEO_FORMAT_H264;
+        break;
+    default:
+        config->stream.supportedVideoFormats = VIDEO_FORMAT_H264;
+        break;
+    }
 
     consoleClear();
 

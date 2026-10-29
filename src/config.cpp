@@ -107,6 +107,9 @@ void parse_argument(int c, char *value, PCONFIGURATION config) {
     case 'D':
         if (value != NULL && atoi(value) == VIDEO_CODEC_TYPE::H263_VIDEO_CODEC) {
             config->video_codec = VIDEO_CODEC_TYPE::H263_VIDEO_CODEC;
+        } else if (value != NULL &&
+                   atoi(value) == VIDEO_CODEC_TYPE::MPEG2_VIDEO_CODEC) {
+            config->video_codec = VIDEO_CODEC_TYPE::MPEG2_VIDEO_CODEC;
         } else {
             config->video_codec = VIDEO_CODEC_TYPE::H264_VIDEO_CODEC;
         }

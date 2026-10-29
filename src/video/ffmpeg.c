@@ -89,6 +89,9 @@ int ffmpeg_init(int videoFormat, int width, int height, int perf_lvl, int buffer
       // decoder also handles H.263+ pictures (PLUSPTYPE, custom picture sizes).
       if (try == 0) decoder = avcodec_find_decoder_by_name("h263");
       if (try == 1) decoder = avcodec_find_decoder_by_name("h263p");
+    } else if (videoFormat & VIDEO_FORMAT_MASK_MPEG2) {
+      // MPEG-2 is software decoded only.
+      if (try == 0) decoder = avcodec_find_decoder_by_name("mpeg2video");
     } else {
       printf("Video format not supported\n");
       return -1;

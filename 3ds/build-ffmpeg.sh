@@ -19,7 +19,7 @@ cd $FFMPEG_DIR
              --disable-protocols --disable-txtpages --disable-podpages --disable-manpages \
              --disable-htmlpages --disable-doc \
              --enable-inline-asm --enable-vfp --enable-armv5te --enable-armv6 \
-             --enable-decoder="h264,h263,hevc,av1" \
+             --enable-decoder="h264,h263,mpeg2video,hevc,av1" \
              --enable-demuxer="h264,hevc,av1" \
              --enable-muxer="mp4,mp3,mp2,ac3" \
              --enable-protocol="file" \

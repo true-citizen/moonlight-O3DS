@@ -39,6 +39,10 @@ H.264 is very demanding for the original 3DS's CPU. As an alternative, the `vide
 - The console prints `Video format: H.263+` or `Video format: H.264` when the stream starts, so you can tell which one you got.
 - H.263 only supports a few picture sizes, so the host has to use the H.263+ custom picture size to match your configured width and height.
 
+### MPEG-2 video (experimental)
+
+Set `video_codec = 2` (or pick `mpeg2` under `stream settings` > `video_codec`) to ask the host for MPEG-2, which is also software decoded and lighter than H.264. The host needs `mpeg2_mode = 1` and `encoder = software` (see [docs/MPEG2_PROTOCOL.md](docs/MPEG2_PROTOCOL.md)). Unlike H.263+ it accepts any normal stream size. On the original 3DS use 30 fps. If the host has H.264 disabled (`h264_mode = 1`) and cannot do MPEG-2, the stream cannot start.
+
 ## Documentation
 
 More information about installing and runnning Moonlight Embedded is available on the [wiki](https://github.com/moonlight-stream/moonlight-embedded/wiki).
