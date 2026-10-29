@@ -26,7 +26,7 @@ index 596d8d2..69712d7 100644
  // SCM masks to identify various codec capabilities
  #define SCM_MASK_H264   (SCM_H264 | SCM_H264_HIGH8_444)
 diff --git a/src/RtspConnection.c b/src/RtspConnection.c
-index 4593763..e7cc3b3 100644
+index 4593763..f65bf1c 100644
 --- a/src/RtspConnection.c
 +++ b/src/RtspConnection.c
 @@ -1067,6 +1067,12 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
@@ -42,6 +42,20 @@ index 4593763..e7cc3b3 100644
          else if ((StreamConfig.supportedVideoFormats & VIDEO_FORMAT_MASK_AV1) && strstr(response.payload, "AV1/90000")) {
              if ((serverInfo->serverCodecModeSupport & SCM_AV1_HIGH10_444) && (StreamConfig.supportedVideoFormats & VIDEO_FORMAT_AV1_HIGH10_444)) {
                  NegotiatedVideoFormat = VIDEO_FORMAT_AV1_HIGH10_444;
+@@ -1115,6 +1121,13 @@ int performRtspHandshake(PSERVER_INFORMATION serverInfo) {
+             }
+         }
+ 
++        // moonlight-N3DS: say why a requested alternative codec was or wasn't used
++        Limelog("Video format: asked 0x%x, host flags 0x%x, H263 rtpmap %s, MPEG2 rtpmap %s -> 0x%x\n",
++            StreamConfig.supportedVideoFormats, serverInfo->serverCodecModeSupport,
++            strstr(response.payload, "H263-1998/90000") ? "yes" : "no",
++            strstr(response.payload, "MPV/90000") ? "yes" : "no",
++            NegotiatedVideoFormat);
++
+         // Look for the SDP attribute that indicates we're dealing with a server that supports RFI
+         ReferenceFrameInvalidationSupported = strstr(response.payload, "x-nv-video[0].refPicInvalidation") != NULL;
+         if (!ReferenceFrameInvalidationSupported) {
 diff --git a/src/SdpGenerator.c b/src/SdpGenerator.c
 index ab3bf01..5d199f7 100644
 --- a/src/SdpGenerator.c
