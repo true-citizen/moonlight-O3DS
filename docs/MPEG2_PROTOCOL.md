@@ -4,7 +4,7 @@ MPEG-2 is a second alternative to H.264 for the original 3DS. It is cheaper to
 decode in software than H.264 and, unlike H.263+, accepts any size the host
 encoder supports. It uses the same decoder setup as the
 [H.263+ extension](H263_PROTOCOL.md): the host needs the matching Sunshine
-change (<https://github.com/true-citizen/Sunshine-h263p>) and the client falls
+change (<https://github.com/true-citizen/Sunshine-h263p>) and the stream
 fails to start when the host cannot do MPEG-2 (there is no H.264 fallback).
 
 ## Values
