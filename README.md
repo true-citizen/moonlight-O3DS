@@ -1,7 +1,7 @@
 # Moonlight for the Old Nintendo 3DS(WIP)
 
-This is fork that tries to solve issues with https://github.com/zoeyjodon/moonlight-N3DS, specifically perfomance issues on Old 3DS by replacing H264 with H263p. Currently this is only attempt and it would require separate fork of Sunshine too, which will be done slightly later
-## First time setup/use
+This is fork that tries to solve issues with https://github.com/zoeyjodon/moonlight-N3DS, specifically perfomance issues on Old 3DS by replacing H264 with H263p. 
+.cia files are on actions page and you need https://github.com/true-citizen/Sunshine-h263p to run it
 
 ### Pairing
 
