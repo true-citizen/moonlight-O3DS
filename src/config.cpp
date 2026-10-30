@@ -58,10 +58,12 @@ static struct option long_options[] = {
     {0, 0, 0, 0},
 };
 
-// video_codec accepts the number (0 = H.264, 1 = H.263+, 2 = MPEG-2) or a name
+// video_codec accepts the number (1 = H.263+, 2 = MPEG-2) or a name. H.264 is
+// not supported by this client, so it is refused rather than silently used.
 static VIDEO_CODEC_TYPE parse_video_codec(const char *value) {
+    const VIDEO_CODEC_TYPE fallback = VIDEO_CODEC_TYPE::H263_VIDEO_CODEC;
     if (value == NULL) {
-        return VIDEO_CODEC_TYPE::H264_VIDEO_CODEC;
+        return fallback;
     }
     while (*value == ' ' || *value == '\t') {
         value++;
@@ -74,24 +76,21 @@ static VIDEO_CODEC_TYPE parse_video_codec(const char *value) {
         strncasecmp(value, "h.263", 5) == 0) {
         return VIDEO_CODEC_TYPE::H263_VIDEO_CODEC;
     }
-    if (strncasecmp(value, "h264", 4) == 0 ||
-        strncasecmp(value, "h.264", 5) == 0) {
-        return VIDEO_CODEC_TYPE::H264_VIDEO_CODEC;
-    }
     char *end = NULL;
     long number = strtol(value, &end, 10);
     if (end != value) {
-        switch (number) {
-        case VIDEO_CODEC_TYPE::H263_VIDEO_CODEC:
+        if (number == VIDEO_CODEC_TYPE::H263_VIDEO_CODEC) {
             return VIDEO_CODEC_TYPE::H263_VIDEO_CODEC;
-        case VIDEO_CODEC_TYPE::MPEG2_VIDEO_CODEC:
+        }
+        if (number == VIDEO_CODEC_TYPE::MPEG2_VIDEO_CODEC) {
             return VIDEO_CODEC_TYPE::MPEG2_VIDEO_CODEC;
-        case VIDEO_CODEC_TYPE::H264_VIDEO_CODEC:
-            return VIDEO_CODEC_TYPE::H264_VIDEO_CODEC;
         }
     }
-    fprintf(stderr, "Unknown video_codec '%s', using H.264\n", value);
-    return VIDEO_CODEC_TYPE::H264_VIDEO_CODEC;
+    fprintf(stderr,
+            "video_codec '%s' is not supported (H.264 was removed), using "
+            "H.263+\n",
+            value);
+    return fallback;
 }
 
 void parse_argument(int c, char *value, PCONFIGURATION config) {
@@ -136,7 +135,7 @@ void parse_argument(int c, char *value, PCONFIGURATION config) {
         break;
     case '8':
         if (value == NULL) {
-            config->video_decoder = VIDEO_DECODER_TYPE::HARDWARE_VIDEO_DECODER;
+            config->video_decoder = VIDEO_DECODER_TYPE::SOFTWARE_VIDEO_DECODER;
         } else {
             config->video_decoder = (VIDEO_DECODER_TYPE)atoi(value);
         }
@@ -230,7 +229,7 @@ void config_parse(int argc, char *argv[], PCONFIGURATION config) {
     config->stream.packetSize = 1392;
     config->stream.streamingRemotely = STREAM_CFG_AUTO;
     config->stream.audioConfiguration = AUDIO_CONFIGURATION_STEREO;
-    config->stream.supportedVideoFormats = SCM_H264;
+    config->stream.supportedVideoFormats = VIDEO_FORMAT_H263;
 
     config->platform = "auto";
     config->app = "Steam";
@@ -251,8 +250,8 @@ void config_parse(int argc, char *argv[], PCONFIGURATION config) {
     config->stream.height = 480;
     config->stream.fps = 60;
     config->stream.encryptionFlags = ENCFLG_NONE;
-    config->video_decoder = VIDEO_DECODER_TYPE::HARDWARE_VIDEO_DECODER;
-    config->video_codec = VIDEO_CODEC_TYPE::H264_VIDEO_CODEC;
+    config->video_decoder = VIDEO_DECODER_TYPE::SOFTWARE_VIDEO_DECODER;
+    config->video_codec = VIDEO_CODEC_TYPE::H263_VIDEO_CODEC;
     config->motion_controls = false;
     config->swap_face_buttons = false;
     config->swap_triggers_and_shoulders = false;

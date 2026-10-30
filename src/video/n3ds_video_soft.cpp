@@ -46,7 +46,7 @@ SoftVideoDecoder::SoftVideoDecoder(int videoFormat, int width, int height,
     printf("Video format: %s\n",
            (videoFormat & VIDEO_FORMAT_MASK_MPEG2)
                ? "MPEG-2"
-               : (videoFormat & VIDEO_FORMAT_MASK_H263) ? "H.263+" : "H.264");
+               : (videoFormat & VIDEO_FORMAT_MASK_H263) ? "H.263+" : "unknown");
     if (ffmpeg_init(videoFormat, width, height, 0, N3DS_BUFFER_FRAMES,
                     SLICES_PER_FRAME) < 0) {
         fprintf(stderr, "Couldn't initialize video decoding\n");

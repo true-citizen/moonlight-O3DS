@@ -5,7 +5,7 @@ decode in software than H.264 and, unlike H.263+, accepts any size the host
 encoder supports. It uses the same decoder setup as the
 [H.263+ extension](H263_PROTOCOL.md): the host needs the matching Sunshine
 change (<https://github.com/true-citizen/Sunshine-h263p>) and the client falls
-back to H.264 when the host cannot do MPEG-2.
+fails to start when the host cannot do MPEG-2 (there is no H.264 fallback).
 
 ## Values
 
@@ -20,13 +20,13 @@ The low 16 bits of the format flags are all used by upstream, hence bit 16.
 
 ## Negotiation
 
-1. The client sets `supportedVideoFormats = VIDEO_FORMAT_MPEG2 | VIDEO_FORMAT_H264`
+1. The client sets `supportedVideoFormats = VIDEO_FORMAT_MPEG2`
    when `video_codec = 2` is configured.
 2. The host advertises `SCM_MPEG2` and the `MPV/90000` rtpmap only when
    `mpeg2_mode = 1` and the software encoder (`encoder = software`) can produce
    MPEG-2.
 3. If all of that matches the client negotiates `VIDEO_FORMAT_MPEG2`, otherwise
-   H.264.
+   the handshake fails (the client never negotiates H.264).
 4. The client sends `bitStreamFormat = 4` and the host encodes with FFmpeg's
    `mpeg2video` encoder.
 

@@ -106,24 +106,5 @@ class SoftVideoDecoder : public VideoDecoderBase {
     bool frame_size_mismatch_logged = false;
 };
 
-class MvdDecoder : public VideoDecoderBase {
-  public:
-    MvdDecoder(int videoFormat, int width, int height, int redrawRate,
-               void *context, int drFlags);
-    ~MvdDecoder();
-    int submit_decode_unit(PDECODE_UNIT decodeUnit);
-
-  private:
-    DecodeReturnStatus _decode(unsigned char *indata, int inlen);
-
-  private:
-    void *nal_unit_buffer = NULL;
-    size_t nal_unit_buffer_size = 0;
-    MVDSTD_Config mvdstd_config;
-    u8 *rgb_img_buffer;
-    bool first_frame = true;
-};
-
 extern DECODER_RENDERER_CALLBACKS decoder_callbacks_n3ds;
-extern DECODER_RENDERER_CALLBACKS decoder_callbacks_n3ds_mvd;
 extern DECODER_RENDERER_CALLBACKS decoder_callbacks_mock;

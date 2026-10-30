@@ -25,18 +25,21 @@
 
 #define MAX_INPUTS 6
 
+// The 3DS hardware (MVD) decoder only handles H.264, which this client no
+// longer supports, so every codec is decoded in software. The numbers are kept
+// so that old config files still mean the same thing (0 is treated as software).
 enum VIDEO_DECODER_TYPE {
-    HARDWARE_VIDEO_DECODER = 0,
+    LEGACY_HARDWARE_VIDEO_DECODER = 0,
     SOFTWARE_VIDEO_DECODER,
     DISABLE_VIDEO_DECODER
 };
 
-// Which codec to ask the host for. H.263+ is decoded in software only and
-// needs a host that can encode it, otherwise the stream falls back to H.264.
+// Which codec to ask the host for. There is no H.264 and no fallback to it: the
+// host has to be able to encode the chosen codec or the stream does not start.
+// (0 was H.264 and is no longer valid, the numbers of the others are unchanged.)
 enum VIDEO_CODEC_TYPE {
-    H264_VIDEO_CODEC = 0,
-    H263_VIDEO_CODEC,
-    MPEG2_VIDEO_CODEC
+    H263_VIDEO_CODEC = 1,
+    MPEG2_VIDEO_CODEC = 2
 };
 
 typedef struct _CONFIGURATION {

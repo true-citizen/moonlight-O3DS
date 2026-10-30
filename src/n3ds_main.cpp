@@ -194,8 +194,8 @@ static std::string prompt_for_address() {
 static VIDEO_DECODER_TYPE
 prompt_for_video_decoder(VIDEO_DECODER_TYPE default_val) {
     std::vector<std::string> decoders = {
-        "hardware (fast, *new* 3DS only)",
-        "software (slow)",
+        "software (hardware decoder removed, same as software)",
+        "software",
         "disable video",
     };
     int idx = console_selection_prompt("Select a video option", decoders,
@@ -208,16 +208,16 @@ prompt_for_video_decoder(VIDEO_DECODER_TYPE default_val) {
 
 static VIDEO_CODEC_TYPE prompt_for_video_codec(VIDEO_CODEC_TYPE default_val) {
     std::vector<std::string> codecs = {
-        "h264 (default)",
-        "h263+ (experimental, software decode, needs H.263+ capable host)",
-        "mpeg2 (experimental, software decode, needs MPEG-2 capable host)",
+        "h263+ (software decode, needs H.263+ capable host)",
+        "mpeg2 (software decode, needs MPEG-2 capable host)",
     };
+    // The list starts at video codec 1, there is no H.264
     int idx = console_selection_prompt("Select a video codec", codecs,
-                                       (int)default_val);
+                                       (int)default_val - 1);
     if (idx < 0) {
         return default_val;
     }
-    return (VIDEO_CODEC_TYPE)idx;
+    return (VIDEO_CODEC_TYPE)(idx + 1);
 }
 
 static bool prompt_for_boolean(std::string prompt, bool default_val) {
@@ -464,20 +464,8 @@ static void stream(PSERVER_DATA server, PCONFIGURATION config, int appId,
 
     PDECODER_RENDERER_CALLBACKS video_callbacks = &decoder_callbacks_mock;
     VIDEO_DECODER_TYPE video_decoder = config->video_decoder;
-    if (config->video_codec != VIDEO_CODEC_TYPE::H264_VIDEO_CODEC &&
-        video_decoder == VIDEO_DECODER_TYPE::HARDWARE_VIDEO_DECODER) {
-        // The MVD hardware decoder only handles H.264
-        printf("%s is decoded in software, ignoring the hardware decoder "
-               "setting\n",
-               config->video_codec == VIDEO_CODEC_TYPE::MPEG2_VIDEO_CODEC
-                   ? "MPEG-2"
-                   : "H.263+");
-        video_decoder = VIDEO_DECODER_TYPE::SOFTWARE_VIDEO_DECODER;
-    }
     switch (video_decoder) {
-    case (VIDEO_DECODER_TYPE::HARDWARE_VIDEO_DECODER):
-        video_callbacks = &decoder_callbacks_n3ds_mvd;
-        break;
+    case (VIDEO_DECODER_TYPE::LEGACY_HARDWARE_VIDEO_DECODER):
     case (VIDEO_DECODER_TYPE::SOFTWARE_VIDEO_DECODER):
         video_callbacks = &decoder_callbacks_n3ds;
         break;
@@ -565,21 +553,13 @@ static void action_stream(CONFIGURATION *config, SERVER_DATA *server) {
         return;
     }
 
-    // H.263+ / MPEG-2 is offered first, but the host can still answer with
-    // H.264 if it has no such encoder, so the stream starts either way.
-    switch (config->video_codec) {
-    case VIDEO_CODEC_TYPE::H263_VIDEO_CODEC:
-        config->stream.supportedVideoFormats =
-            VIDEO_FORMAT_H263 | VIDEO_FORMAT_H264;
-        break;
-    case VIDEO_CODEC_TYPE::MPEG2_VIDEO_CODEC:
-        config->stream.supportedVideoFormats =
-            VIDEO_FORMAT_MPEG2 | VIDEO_FORMAT_H264;
-        break;
-    default:
-        config->stream.supportedVideoFormats = VIDEO_FORMAT_H264;
-        break;
-    }
+    // Only H.263+ or MPEG-2 is ever offered. There is no H.264 in this client,
+    // so a host that cannot encode the chosen codec makes the stream fail
+    // instead of falling back.
+    config->stream.supportedVideoFormats =
+        config->video_codec == VIDEO_CODEC_TYPE::MPEG2_VIDEO_CODEC
+            ? VIDEO_FORMAT_MPEG2
+            : VIDEO_FORMAT_H263;
 
     // The host rejects stream settings its encoder cannot produce. Say so
     // here, where it can be fixed, instead of failing with a bare error code.

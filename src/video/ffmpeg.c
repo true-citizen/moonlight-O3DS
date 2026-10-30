@@ -63,15 +63,7 @@ int ffmpeg_init(int videoFormat, int width, int height, int perf_lvl, int buffer
 
   for (int try = 0; try < 6; try++) {
     decoder = NULL;
-    if (videoFormat & VIDEO_FORMAT_MASK_H264) {
-      if (ffmpeg_decoder == SOFTWARE) {
-        if (try == 0) decoder = avcodec_find_decoder_by_name("h264_nvv4l2"); // Tegra
-        if (try == 1) decoder = avcodec_find_decoder_by_name("h264_nvmpi"); // Tegra
-        if (try == 2) decoder = avcodec_find_decoder_by_name("h264_omx"); // VisionFive
-        if (try == 3) decoder = avcodec_find_decoder_by_name("h264_v4l2m2m"); // Stateful V4L2
-      }
-      if (try == 4) decoder = avcodec_find_decoder_by_name("h264"); // Software and hwaccel
-    } else if (videoFormat & VIDEO_FORMAT_MASK_H265) {
+    if (videoFormat & VIDEO_FORMAT_MASK_H265) {
       if (ffmpeg_decoder == SOFTWARE) {
         if (try == 0) decoder = avcodec_find_decoder_by_name("hevc_nvv4l2"); // Tegra
         if (try == 1) decoder = avcodec_find_decoder_by_name("hevc_nvmpi"); // Tegra

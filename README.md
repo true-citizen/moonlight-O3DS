@@ -31,17 +31,16 @@ After modding your 3DS and installing the Moonlight CIA, open the moonlight appl
 You can modify documented settings either in the app, or by creating/modifying the config file located at `sd:/3ds/moonlight/moonlight.conf`.
 The default settings are recommended for \*New\* 3DS users.
 
-### H.263+ video (experimental)
+### Video codecs: H.263+ and MPEG-2 only
 
-H.264 is very demanding for the original 3DS's CPU. As an alternative, the `video_codec` setting (`stream settings` > `video_codec`, or `video_codec = 1` in the config file; `0` = H.264, `1` = H.263+, `2` = MPEG-2, and the names `h264`, `h263` and `mpeg2` also work) asks the host for H.263+ instead. H.263+ is always decoded in software, so the hardware decoder setting is ignored while it is selected.
+This client has **no H.264 at all**: no H.264 decoder, no 3DS hardware (MVD) decoder, and no fallback. H.264 was too demanding for the original 3DS's CPU. The `video_codec` setting (`stream settings` > `video_codec`, or in the config file) picks what to ask the host for:
 
-- The host must be able to encode H.263+ (see [docs/H263_PROTOCOL.md](docs/H263_PROTOCOL.md)). Stock Sunshine and GameStream cannot, in which case the stream falls back to H.264.
-- The console prints `Video format: H.263+` or `Video format: H.264` when the stream starts, so you can tell which one you got.
-- H.263 only supports a few picture sizes, so the host has to use the H.263+ custom picture size to match your configured width and height.
+- `video_codec = 1` (or `h263`): H.263+. Needs `h263_mode = 1` on the host. The width and height must be multiples of 4, at most 2048x1152. See [docs/H263_PROTOCOL.md](docs/H263_PROTOCOL.md).
+- `video_codec = 2` (or `mpeg2`): MPEG-2. Needs `mpeg2_mode = 1` on the host. Only certain frame rates work (an unsupported `fps` is switched to the nearest one), 30 fps is recommended on the original 3DS. See [docs/MPEG2_PROTOCOL.md](docs/MPEG2_PROTOCOL.md).
 
-### MPEG-2 video (experimental)
+Both need the matching Sunshine fork (<https://github.com/true-citizen/Sunshine-h263p>) with `encoder = software`. If the host cannot encode the chosen codec the stream fails to start; it never switches to H.264. The old `video_codec = 0` (H.264) is no longer valid and is treated as H.263+. The `video_decoder` setting has no effect other than `disable video`.
 
-Set `video_codec = 2` (or pick `mpeg2` under `stream settings` > `video_codec`) to ask the host for MPEG-2, which is also software decoded and lighter than H.264. The host needs `mpeg2_mode = 1` and `encoder = software` (see [docs/MPEG2_PROTOCOL.md](docs/MPEG2_PROTOCOL.md)). Unlike H.263+ it accepts any normal stream size. On the original 3DS use 30 fps. If the host has H.264 disabled (`h264_mode = 1`) and cannot do MPEG-2, the stream cannot start.
+The console prints `Video format: H.263+` or `Video format: MPEG-2` when the stream starts.
 
 ## Documentation
 

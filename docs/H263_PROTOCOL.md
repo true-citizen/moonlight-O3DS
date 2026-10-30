@@ -4,7 +4,8 @@ This fork lets the Old 3DS ask the host for H.263+ (H.263 version 2) instead of
 H.264, because the original 3DS cannot decode H.264 fast enough in software.
 Stock Sunshine and GameStream do not know about it, so a host needs the
 matching Sunshine change (<https://github.com/true-citizen/Sunshine-h263p>).
-If the host does not support it, the client falls back to H.264.
+This client has no H.264 support, so if the host does not offer H.263+ the
+stream fails to start.
 
 ## Values
 
@@ -17,14 +18,14 @@ If the host does not support it, the client falls back to H.264.
 
 ## Negotiation
 
-1. The client sets `supportedVideoFormats = VIDEO_FORMAT_H263 | VIDEO_FORMAT_H264`
+1. The client sets `supportedVideoFormats = VIDEO_FORMAT_H263`
    when `video_codec = 1` is configured.
 2. The host advertises `SCM_H263` in `/serverinfo` and the `H263-1998/90000`
    rtpmap in the RTSP DESCRIBE reply, but only when `h263_mode = 1` and the
    software encoder (`encoder = software`) can produce H.263+.
 3. If the client asked for H.263+, the host advertised `SCM_H263` and the
    rtpmap is present, the client negotiates `VIDEO_FORMAT_H263`. In any other
-   case it negotiates H.264 as usual.
+   case the handshake fails (the client never negotiates H.264).
 4. The client sends `bitStreamFormat = 3` and the host encodes with FFmpeg's
    `h263p` encoder.
 
